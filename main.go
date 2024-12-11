@@ -9,13 +9,14 @@ import (
 	"pcso-lotto-scraper-api/internal/database"
 	"pcso-lotto-scraper-api/internal/scraper"
 
-	"github.com/gorilla/mux"
 	"github.com/robfig/cron/v3"
 )
 
 func main() {
 	db := database.InitDB()
 	defer db.Close()
+
+	api.SetDB(db)
 
 	// Function to scrape and insert results into the database
 	scrapeAndInsert := func() {
@@ -64,11 +65,9 @@ func main() {
 	c.Start()
 
 	// Start REST API server
-	r := mux.NewRouter()
-	r.HandleFunc("/results", api.GetLottoResults(db)).Methods("GET")
-	r.HandleFunc("/heatmap", api.GetHeatmap(db)).Methods("GET")
-	r.HandleFunc("/game-types", api.GetGameTypes(db)).Methods("GET")
-
+	http.HandleFunc("/results", api.GetLottoResults)
+	http.HandleFunc("/heatmap", api.GetHeatmap)
+	http.HandleFunc("/game-types", api.GetGameTypes)
 	log.Println("Server started on :8080")
-	http.ListenAndServe(":8080", r)
+	http.ListenAndServe(":8080", nil)
 }
