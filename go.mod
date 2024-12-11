@@ -4,7 +4,6 @@ go 1.23.4
 
 require (
 	github.com/gocolly/colly v1.2.0
-	github.com/gorilla/mux v1.8.1
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/robfig/cron/v3 v3.0.1
 )
