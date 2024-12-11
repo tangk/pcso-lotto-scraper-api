@@ -47,8 +47,16 @@ func main() {
 	time.AfterFunc(10*time.Second, scrapeAndInsert)
 
 	// Schedule the cron job
-	c := cron.New()
-	_, err := c.AddFunc("@daily", scrapeAndInsert)
+	c := cron.New(cron.WithLocation(time.FixedZone("PHT", 8*60*60))) // PH time (UTC+8)
+	_, err := c.AddFunc("0-30/5 14 * * *", scrapeAndInsert)
+	if err != nil {
+		log.Fatal("Failed to schedule cron job:", err)
+	}
+	_, err = c.AddFunc("0-30/5 16 * * *", scrapeAndInsert)
+	if err != nil {
+		log.Fatal("Failed to schedule cron job:", err)
+	}
+	_, err = c.AddFunc("0-45/5 21 * * *", scrapeAndInsert)
 	if err != nil {
 		log.Fatal("Failed to schedule cron job:", err)
 	}

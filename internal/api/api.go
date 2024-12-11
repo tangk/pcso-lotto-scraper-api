@@ -4,58 +4,33 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"strconv"
-	"strings"
-	"time"
 
 	"pcso-lotto-scraper-api/internal/utils"
 )
 
 func GetLottoResults(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		gameType := r.URL.Query().Get("gameType")
-		drawDateFrom := r.URL.Query().Get("drawDateFrom")
-		drawDateTo := r.URL.Query().Get("drawDateTo")
+		gameType, drawDateFrom, drawDateTo, args, err := utils.ValidateFilters(r, false, 1)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		query := `
 			SELECT game_type, draw_date, jackpot, winners, 
 			number1, number2, number3, number4, number5, number6 
 			FROM lotto_results WHERE 1=1
 		`
-		var args []interface{}
 
-		// Filter by game type
+		// Filter by gameType
 		if gameType != "" {
 			query += " AND game_type = ?"
 			args = append(args, gameType)
 		}
 
-		// Validate and filter by draw date range
-		if drawDateFrom != "" || drawDateTo != "" {
-			if drawDateFrom == "" {
-				drawDateFrom = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-			}
-
-			if drawDateTo == "" {
-				drawDateTo = time.Now().Format("2006-01-02")
-			}
-
-			// Ensure valid date formats
-			parseDateFrom, errFrom := utils.ParseDate(drawDateFrom)
-			parseDateTo, errTo := utils.ParseDate(drawDateTo)
-
-			if errFrom != nil || errTo != nil {
-				http.Error(w, "Invalid date format. Use YYYY-MM-DD.", http.StatusBadRequest)
-				return
-			}
-
-			query += " AND draw_date BETWEEN ? AND ?"
-			args = append(args, parseDateFrom, parseDateTo)
-		} else {
-			// Default to the today and yesterday
-			query += " AND draw_date >= ?"
-			args = append(args, time.Now().AddDate(0, 0, -1).Format("2006-01-02"))
-		}
+		// Filter by draw date range
+		query += " AND draw_date BETWEEN ? AND ?"
+		args = append(args, drawDateFrom, drawDateTo)
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
@@ -78,74 +53,35 @@ func GetLottoResults(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			var combination []string
-			for _, num := range numbers {
-				if num.Valid {
-					combination = append(combination, strconv.FormatInt(num.Int64, 10))
-				}
-			}
-
+			combination := utils.FormatCombination(numbers)
 			results = append(results, map[string]interface{}{
 				"gameType":    gameType,
 				"drawDate":    drawDate,
 				"jackpot":     jackpot,
 				"winners":     winners,
-				"combination": strings.Join(combination, "-"),
+				"combination": combination,
 			})
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(results)
+		utils.RespondWithJSON(w, results)
 	}
 }
 
 func GetHeatmap(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		gameType := r.URL.Query().Get("gameType")
-		drawDateFrom := r.URL.Query().Get("drawDateFrom")
-		drawDateTo := r.URL.Query().Get("drawDateTo")
+		gameType, drawDateFrom, drawDateTo, args, err := utils.ValidateFilters(r, true, 30)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		args = append(args, gameType, drawDateFrom, drawDateTo)
 
 		query := `
-			SELECT number1, number2, number3, number4, number5, number6
-			FROM lotto_results WHERE 1=1
+			SELECT number1, number2, number3, number4, number5, number6 
+			FROM lotto_results 
+			WHERE game_type = ? AND draw_date BETWEEN ? AND ?
 		`
-		var args []interface{}
-
-		// Validate required params
-		if gameType == "" {
-			http.Error(w, "gameType is required", http.StatusBadRequest)
-			return
-		} else {
-			query += " AND game_type = ?"
-			args = append(args, gameType)
-		}
-
-		// Validate and filter by draw date range
-		if drawDateFrom != "" || drawDateTo != "" {
-			if drawDateFrom == "" {
-				drawDateFrom = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-			}
-
-			if drawDateTo == "" {
-				drawDateTo = time.Now().Format("2006-01-02")
-			}
-
-			// Ensure valid date formats
-			parseDateFrom, errFrom := utils.ParseDate(drawDateFrom)
-			parseDateTo, errTo := utils.ParseDate(drawDateTo)
-
-			if errFrom != nil || errTo != nil {
-				http.Error(w, "Invalid date format. Use YYYY-MM-DD.", http.StatusBadRequest)
-				return
-			}
-
-			query += " AND draw_date BETWEEN ? AND ?"
-			args = append(args, parseDateFrom, parseDateTo)
-		} else {
-			// Default to the today and yesterday
-			query += " AND draw_date >= ?"
-			args = append(args, time.Now().AddDate(0, 0, -30).Format("2006-01-02"))
-		}
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
@@ -154,7 +90,6 @@ func GetHeatmap(db *sql.DB) http.HandlerFunc {
 		}
 		defer rows.Close()
 
-		// Initialize a heatmap for counting number occurrences
 		heatmap := make(map[int]int)
 
 		for rows.Next() {
@@ -173,8 +108,7 @@ func GetHeatmap(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(heatmap)
+		utils.RespondWithJSON(w, heatmap)
 	}
 }
 
