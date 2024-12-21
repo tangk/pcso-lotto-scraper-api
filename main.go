@@ -18,17 +18,30 @@ func main() {
 
 	api.SetDB(db)
 
-	// Function to scrape and insert results into the database
 	scrapeAndInsert := func() {
 		log.Println("Running scrape...")
 
-		results, err := scraper.FetchLottoResults()
+		fromDate, err := database.QueryLatestDate(db)
+		if err != nil || fromDate.IsZero() {
+			log.Println("Failed to query latest date:", err)
+			return
+		}
+
+		var results []scraper.LottoResult
+
+		if fromDate.Equal(time.Now()) {
+			log.Println("Scraping daily results...")
+			results, err = scraper.FetchDaily()
+		} else {
+			log.Println("Scraping to latest results...")
+			results, err = scraper.FetchToLatest(fromDate)
+		}
+
 		if err != nil {
 			log.Println("Failed to scrape:", err)
 			return
 		}
 
-		// Insert results into the database
 		for _, result := range results {
 			database.InsertLottoResults(db, []map[string]string{
 				{
