@@ -18,7 +18,6 @@ func main() {
 
 	api.SetDB(db)
 
-	// Function to scrape and insert results into the database
 	scrapeAndInsert := func() {
 		log.Println("Running scrape...")
 
@@ -43,7 +42,6 @@ func main() {
 			return
 		}
 
-		// Insert results into the database
 		for _, result := range results {
 			database.InsertLottoResults(db, []map[string]string{
 				{

@@ -15,7 +15,6 @@ type LottoResult struct {
 	Winners     string
 }
 
-// create a map of gametypes and their corresponding values
 var gameTypes = map[string]string{
 	"6/58":     "1",
 	"6/55":     "2",
@@ -34,7 +33,6 @@ func FetchDaily() ([]LottoResult, error) {
 	var results []LottoResult
 
 	c.OnHTML("table#cphContainer_cpContent_GridView1 tbody tr", func(e *colly.HTMLElement) {
-		// Skip header row
 		if e.Index == 0 {
 			return
 		}
@@ -84,9 +82,7 @@ func FetchToLatest(fromDate time.Time) ([]LottoResult, error) {
 
 	var results []LottoResult
 
-	// get the results
 	c.OnHTML("table#cphContainer_cpContent_GridView1 tbody tr", func(e *colly.HTMLElement) {
-		// Skip header row
 		if e.Index == 0 {
 			return
 		}
