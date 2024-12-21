@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"pcso-lotto-scraper-api/internal/utils"
 
@@ -171,4 +172,17 @@ func InsertLottoResults(db *sql.DB, results []map[string]string) error {
 	}
 
 	return nil
+}
+
+// query latest date from database
+func QueryLatestDate(db *sql.DB) (time.Time, error) {
+	var latestDate string
+	err := db.QueryRow("SELECT MAX(draw_date) FROM lotto_results").Scan(&latestDate)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	latestDate = strings.Split(latestDate, " ")[0]
+
+	return time.Parse("2006-01-02", latestDate)
 }
